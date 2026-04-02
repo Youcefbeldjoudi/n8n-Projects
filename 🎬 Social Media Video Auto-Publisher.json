@@ -1,0 +1,484 @@
+{
+  "name": "🎬 Social Media Video Auto-Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "https://drive.google.com/drive/folders/12YHL2rHG62PnBkHoVjidK26eeV4EW7BG?usp=sharing",
+          "mode": "id"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "9889beea-57f1-4b15-b3e4-275048c9601e",
+      "name": "📁 Watch Drive Folder",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        128
+      ],
+      "notes": "⚙️ Remplacez REMPLACEZ_PAR_VOTRE_FOLDER_ID par l'ID de votre dossier Google Drive. L'ID est dans l'URL du dossier: drive.google.com/drive/folders/[ID_ICI]"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-video",
+              "leftValue": "={{ $json.mimeType }}",
+              "rightValue": "video",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e089b9b9-67d7-4036-809c-2b5e3b23879f",
+      "name": "🎥 Is Video File?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        128
+      ],
+      "notes": "Vérifie que le fichier détecté est bien une vidéo (mp4, mov, avi...). Si ce n'est pas une vidéo, le workflow s'arrête."
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "operation": "list"
+      },
+      "id": "94a6e5ec-ea13-4294-8ef4-e35a635c9e11",
+      "name": "📂 List Folder Files",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Liste tous les fichiers du dossier pour retrouver le fichier .txt correspondant à la vidéo."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nom de la vidéo détectée\nconst videoName = $('📁 Watch Drive Folder').first().json.name;\nconst baseName = videoName.replace(/\\.[^.]+$/, ''); // ex: 'ma-video' depuis 'ma-video.mp4'\nconst txtName = baseName + '.txt';\n\n// Cherche le fichier .txt correspondant dans la liste\nconst txtFile = items.find(item => item.json.name === txtName);\n\nif (!txtFile) {\n  throw new Error(`❌ Fichier TXT introuvable : \"${txtName}\"\\nAssurez-vous d'avoir un fichier \"${txtName}\" dans le même dossier que votre vidéo.`);\n}\n\n// Formatte le titre (remplace tirets/underscores par des espaces)\nconst title = baseName\n  .replace(/[-_]/g, ' ')\n  .replace(/\\b\\w/g, c => c.toUpperCase());\n\nreturn [{\n  json: {\n    txtFileId: txtFile.json.id,\n    txtFileName: txtFile.json.name,\n    videoFileId: $('📁 Watch Drive Folder').first().json.id,\n    videoFileName: videoName,\n    baseName: baseName,\n    title: title\n  }\n}];"
+      },
+      "id": "9b562e4c-1473-4d3d-bde2-512638a44087",
+      "name": "🔗 Find Matching TXT",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "notes": "Convention de nommage : votre vidéo s'appelle 'ma-video.mp4' → le fichier caption doit s'appeler 'ma-video.txt'. Ce code trouve automatiquement la correspondance."
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.txtFileId }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "2802734f-6758-44b7-ab10-2370b32e33ac",
+      "name": "📖 Download Caption TXT",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lit le contenu du fichier TXT (encodé en base64)\nconst item = $input.first();\nconst binaryKey = Object.keys(item.binary || {})[0];\nlet caption = '';\n\nif (binaryKey && item.binary[binaryKey]) {\n  caption = Buffer.from(item.binary[binaryKey].data, 'base64').toString('utf-8').trim();\n}\n\nif (!caption) {\n  throw new Error('❌ Le fichier TXT est vide. Ajoutez votre caption/description dans le fichier .txt');\n}\n\n// Récupère les métadonnées de la vidéo depuis le noeud précédent\nconst meta = $('🔗 Find Matching TXT').first().json;\n\nconsole.log(`✅ Caption extraite (${caption.length} caractères) pour : ${meta.videoFileName}`);\n\nreturn [{\n  json: {\n    caption: caption,\n    videoFileId: meta.videoFileId,\n    videoFileName: meta.videoFileName,\n    baseName: meta.baseName,\n    title: meta.title,\n    extractedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "e1d6fb6c-6c7f-4d10-8b5c-e081549af282",
+      "name": "📝 Extract Caption",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ],
+      "notes": "Lit et décode le texte du fichier .txt pour obtenir la caption qui sera postée sur toutes les plateformes."
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.videoFileId }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "43cacc33-6275-4d61-8768-0e79d93b8686",
+      "name": "⬇️ Download Video",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        960,
+        0
+      ],
+      "notes": "Télécharge la vidéo depuis Drive. Pour les très grosses vidéos (>500MB), préférez utiliser l'URL publique Drive plutôt que le téléchargement direct."
+    },
+    {
+      "parameters": {
+        "filters": {},
+        "options": {}
+      },
+      "id": "216ced34-9b73-4ba9-9114-5b994aaee035",
+      "name": "▶️ Upload to YouTube",
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        0
+      ],
+      "notes": "⚙️ Catégorie 22 = People & Blogs. Modifiez categoryId selon votre contenu:\n10=Music, 20=Gaming, 24=Entertainment, 28=Science & Technology\nLe champ 'inputDataFieldName' doit correspondre au nom du binaire de Google Drive (par défaut: 'data')."
+    },
+    {
+      "parameters": {
+        "text": "={{ $('📝 Extract Caption').first().json.caption }}\n\n📺 https://youtu.be/{{ $json.id }}",
+        "additionalFields": {}
+      },
+      "id": "c4707e6d-e37f-4019-9a32-7e6f51c5ba00",
+      "name": "🐦 Post Twitter/X",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        0
+      ],
+      "notes": "Poste la caption + le lien YouTube sur Twitter/X. Note: la limite est 280 caractères — tronquez la caption si nécessaire en ajoutant .slice(0, 200) avant le lien."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v19.0/{{ $vars.FACEBOOK_PAGE_ID }}/videos",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.FACEBOOK_PAGE_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "description",
+              "value": "={{ $('📝 Extract Caption').first().json.caption }}"
+            },
+            {
+              "name": "title",
+              "value": "={{ $('📝 Extract Caption').first().json.title }}"
+            },
+            {
+              "name": "file_url",
+              "value": "=https://drive.google.com/uc?id={{ $('📝 Extract Caption').first().json.videoFileId }}&export=download"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "03491cd1-968f-4df3-92f8-55fcf6851d75",
+      "name": "📘 Post Facebook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        0
+      ],
+      "notes": "⚙️ Variables requises dans n8n (Settings > Variables):\n- FACEBOOK_PAGE_ID : l'ID numérique de votre Page Facebook\n- FACEBOOK_PAGE_ACCESS_TOKEN : token permanent de la Page\nLa vidéo est uploadée via son URL Drive public (le fichier doit être partagé publiquement)."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v19.0/{{ $vars.INSTAGRAM_ACCOUNT_ID }}/media",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "media_type",
+              "value": "REELS"
+            },
+            {
+              "name": "video_url",
+              "value": "=https://drive.google.com/uc?id={{ $('📝 Extract Caption').first().json.videoFileId }}&export=download"
+            },
+            {
+              "name": "caption",
+              "value": "={{ $('📝 Extract Caption').first().json.caption }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $vars.INSTAGRAM_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "3d4ae912-fcee-43ca-add5-691f85fc4117",
+      "name": "📸 IG: Create Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        0
+      ],
+      "notes": "⚙️ Variables requises:\n- INSTAGRAM_ACCOUNT_ID : ID du compte Instagram Business\n- INSTAGRAM_ACCESS_TOKEN : token Meta API\nÉtape 1/2 de la publication Instagram: crée un conteneur média et retourne un creation_id."
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "id": "e7fb579c-7b64-4341-9950-fb2b284fdf3e",
+      "name": "⏳ Wait for IG Processing",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2160,
+        0
+      ],
+      "webhookId": "wait-ig",
+      "notes": "Instagram a besoin de temps pour traiter la vidéo avant publication. 30 secondes suffisent généralement pour les Reels courts. Augmentez pour les vidéos longues."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v19.0/{{ $vars.INSTAGRAM_ACCOUNT_ID }}/media_publish",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "creation_id",
+              "value": "={{ $('📸 IG: Create Container').first().json.id }}"
+            },
+            {
+              "name": "access_token",
+              "value": "={{ $vars.INSTAGRAM_ACCESS_TOKEN }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "63d03244-182f-4cdb-be60-926d73b7d0a1",
+      "name": "📸 IG: Publish Reel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        0
+      ],
+      "notes": "Étape 2/2 : publie définitivement le Reel Instagram en utilisant le creation_id de l'étape précédente."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $vars.NOTIFICATION_EMAIL }}",
+        "subject": "=✅ Vidéo publiée automatiquement — {{ $('📝 Extract Caption').first().json.title }}",
+        "message": "=<div style=\"font-family: 'Segoe UI', Arial, sans-serif; max-width: 620px; margin: auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);\">\n  <div style=\"background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 32px; text-align: center;\">\n    <h1 style=\"color: #ffffff; margin: 0; font-size: 28px; letter-spacing: -0.5px;\">🎬 Publication Réussie</h1>\n    <p style=\"color: #a0b4d0; margin: 8px 0 0; font-size: 14px;\">Votre vidéo a été publiée automatiquement via n8n</p>\n  </div>\n  <div style=\"padding: 32px;\">\n    <table style=\"width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; border: 1px solid #e8ecf0;\">\n      <tr style=\"background: #f8fafc;\">\n        <td style=\"padding: 12px 16px; font-weight: 600; color: #374151; font-size: 13px; width: 120px;\">📄 Fichier</td>\n        <td style=\"padding: 12px 16px; color: #6b7280; font-size: 13px;\">{{ $('📝 Extract Caption').first().json.videoFileName }}</td>\n      </tr>\n      <tr>\n        <td style=\"padding: 12px 16px; font-weight: 600; color: #374151; font-size: 13px;\">📝 Caption</td>\n        <td style=\"padding: 12px 16px; color: #374151; font-size: 13px; line-height: 1.6;\">{{ $('📝 Extract Caption').first().json.caption }}</td>\n      </tr>\n      <tr style=\"background: #f8fafc;\">\n        <td style=\"padding: 12px 16px; font-weight: 600; color: #374151; font-size: 13px;\">🕐 Publié le</td>\n        <td style=\"padding: 12px 16px; color: #6b7280; font-size: 13px;\">{{ $now.format('DD/MM/YYYY à HH:mm:ss') }}</td>\n      </tr>\n    </table>\n    <h3 style=\"color: #1a1a2e; margin: 28px 0 16px; font-size: 16px;\">📱 Plateformes publiées</h3>\n    <table style=\"width: 100%; border-collapse: collapse;\">\n      <tr>\n        <td style=\"padding: 10px 16px; background: #fff7ed; border-radius: 8px; margin-bottom: 8px; display: block;\">\n          <span style=\"font-size: 18px;\">▶️</span>\n          <strong style=\"color: #c2410c; margin-left: 8px;\">YouTube</strong>\n          <span style=\"float: right;\"><a href=\"https://youtu.be/{{ $('▶️ Upload to YouTube').first().json.id }}\" style=\"color: #ea4c1d; text-decoration: none; font-size: 13px;\">👁 Voir la vidéo →</a></span>\n        </td>\n      </tr>\n      <tr><td style=\"height: 6px;\"></td></tr>\n      <tr>\n        <td style=\"padding: 10px 16px; background: #eff6ff; border-radius: 8px; display: block;\">\n          <span style=\"font-size: 18px;\">🐦</span>\n          <strong style=\"color: #1d4ed8; margin-left: 8px;\">Twitter / X</strong>\n          <span style=\"float: right; color: #6b7280; font-size: 13px;\">✅ Publié avec lien YT</span>\n        </td>\n      </tr>\n      <tr><td style=\"height: 6px;\"></td></tr>\n      <tr>\n        <td style=\"padding: 10px 16px; background: #eff6ff; border-radius: 8px; display: block;\">\n          <span style=\"font-size: 18px;\">📘</span>\n          <strong style=\"color: #1d4ed8; margin-left: 8px;\">Facebook Page</strong>\n          <span style=\"float: right; color: #6b7280; font-size: 13px;\">✅ Vidéo postée</span>\n        </td>\n      </tr>\n      <tr><td style=\"height: 6px;\"></td></tr>\n      <tr>\n        <td style=\"padding: 10px 16px; background: #fdf2f8; border-radius: 8px; display: block;\">\n          <span style=\"font-size: 18px;\">📸</span>\n          <strong style=\"color: #9d174d; margin-left: 8px;\">Instagram</strong>\n          <span style=\"float: right; color: #6b7280; font-size: 13px;\">✅ Reel publié</span>\n        </td>\n      </tr>\n    </table>\n  </div>\n  <div style=\"background: #f8fafc; padding: 16px 32px; text-align: center; border-top: 1px solid #e8ecf0;\">\n    <p style=\"color: #9ca3af; font-size: 12px; margin: 0;\">Publié automatiquement par n8n • YB Studio 21 Automation</p>\n  </div>\n</div>",
+        "options": {}
+      },
+      "id": "f322331e-8ff1-400a-91e1-c7c6c21f90cc",
+      "name": "📧 Email Confirmation",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2640,
+        0
+      ],
+      "webhookId": "9107c2ec-bee6-4658-a557-6deaf39581a8",
+      "notes": "⚙️ Variable requise:\n- NOTIFICATION_EMAIL : votre adresse email pour les confirmations\nL'email contient le nom du fichier, la caption, l'heure de publication et les liens vers chaque plateforme."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "📁 Watch Drive Folder": {
+      "main": [
+        [
+          {
+            "node": "🎥 Is Video File?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎥 Is Video File?": {
+      "main": [
+        [
+          {
+            "node": "📂 List Folder Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📂 List Folder Files": {
+      "main": [
+        [
+          {
+            "node": "🔗 Find Matching TXT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Find Matching TXT": {
+      "main": [
+        [
+          {
+            "node": "📖 Download Caption TXT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📖 Download Caption TXT": {
+      "main": [
+        [
+          {
+            "node": "📝 Extract Caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Extract Caption": {
+      "main": [
+        [
+          {
+            "node": "⬇️ Download Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⬇️ Download Video": {
+      "main": [
+        [
+          {
+            "node": "▶️ Upload to YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "▶️ Upload to YouTube": {
+      "main": [
+        [
+          {
+            "node": "🐦 Post Twitter/X",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🐦 Post Twitter/X": {
+      "main": [
+        [
+          {
+            "node": "📘 Post Facebook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📘 Post Facebook": {
+      "main": [
+        [
+          {
+            "node": "📸 IG: Create Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📸 IG: Create Container": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait for IG Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏳ Wait for IG Processing": {
+      "main": [
+        [
+          {
+            "node": "📸 IG: Publish Reel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📸 IG: Publish Reel": {
+      "main": [
+        [
+          {
+            "node": "📧 Email Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "8be26c37-2386-4e4d-9efb-0a7455af4f7c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0056a6eb1422b9e282ea91727a11a29b9cecf6c2073e820942d1b6743f8ddfc2"
+  },
+  "id": "xAukiMTqU47NoT2f",
+  "tags": []
+}

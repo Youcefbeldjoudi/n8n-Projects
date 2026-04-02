@@ -1,0 +1,575 @@
+{
+  "name": "4 Multi-Platform Social Media Content Distribution with Google Sheets Integration",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Trigger & Configuration\n\nDetects new rows added to Google Sheets and sets required configuration values such as platform IDs before routing the post through the workflow.\n",
+        "height": 156,
+        "width": 304,
+        "color": 5
+      },
+      "id": "1ef68044-b2d4-405c-8d38-35ebada535ab",
+      "name": "📋 Workflow Overview",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1008,
+        192
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "id": "3727a76f-f045-4713-84dd-eac6cfea3f6b",
+      "name": "New Row in Content Sheet",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "position": [
+        -1008,
+        384
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "instagramPageId",
+              "type": "string",
+              "value": "<__PLACEHOLDER_VALUE__Your Instagram Business Account ID__>"
+            },
+            {
+              "id": "id-2",
+              "name": "facebookPageId",
+              "type": "string",
+              "value": "<__PLACEHOLDER_VALUE__Your Facebook Page ID__>"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "f1bb92d8-3582-46df-acef-0a6066fc575d",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -784,
+        384
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "id-1",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.Instagram }}",
+              "rightValue": "TRUE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2f3b0451-6d3e-43b8-b893-c0e9aef54b2b",
+      "name": "Check Platform: Instagram",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -560,
+        384
+      ],
+      "typeVersion": 2.3
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": false,
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "id-1",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.Facebook }}",
+              "rightValue": "TRUE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b231d46d-1bf6-47df-a5e6-7c889e4094e3",
+      "name": "Check Platform: Facebook",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -192,
+        272
+      ],
+      "typeVersion": 2.3
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": false,
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "id-1",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.LinkedIn }}",
+              "rightValue": "TRUE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dedc7e44-28d7-4321-9cbf-a0fa1108cda1",
+      "name": "Check Platform: LinkedIn",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        32,
+        176
+      ],
+      "typeVersion": 2.3
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "node": "={{ $('Workflow Configuration').first().json.instagramPageId }}",
+        "edge": "feed",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "message",
+                "value": "={{ $json.Content }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "f2c5d43b-4f5c-4855-ad6b-01c478e46f23",
+      "name": "Post to Instagram",
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "position": [
+        -192,
+        560
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "httpRequestMethod": "POST",
+        "node": "={{ $('Workflow Configuration').first().json.facebookPageId }}",
+        "edge": "feed",
+        "options": {
+          "queryParameters": {
+            "parameter": [
+              {
+                "name": "message",
+                "value": "={{ $json.Content }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "468fdd1f-86cb-4871-8add-49224387cc78",
+      "name": "Post to Facebook",
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "position": [
+        32,
+        368
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.Content }}",
+        "additionalFields": {}
+      },
+      "id": "b9c44ebe-643d-4688-98af-c5591bb41feb",
+      "name": "Post to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "position": [
+        256,
+        176
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "<__PLACEHOLDER_VALUE__Document ID from trigger__>"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "<__PLACEHOLDER_VALUE__Sheet name from trigger__>"
+        },
+        "columns": {
+          "value": {
+            "Row Number": "={{ $json.row_number }}"
+          },
+          "schema": [
+            {
+              "id": "Row Number",
+              "type": "string",
+              "required": false,
+              "displayName": "Row Number",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "type": "string",
+              "required": false,
+              "displayName": "Status",
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            }
+          ],
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Row Number"
+          ]
+        },
+        "options": {}
+      },
+      "id": "472e38a8-eb44-414c-9e84-0f48ba347227",
+      "name": "Update Status: Instagram",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        32,
+        560
+      ],
+      "typeVersion": 4.7
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "<__PLACEHOLDER_VALUE__Document ID from trigger__>"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "<__PLACEHOLDER_VALUE__Sheet name from trigger__>"
+        },
+        "columns": {
+          "value": {
+            "Row Number": "={{ $json.row_number }}"
+          },
+          "schema": [
+            {
+              "id": "Row Number",
+              "type": "string",
+              "required": false,
+              "displayName": "Row Number",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "type": "string",
+              "required": false,
+              "displayName": "Status",
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            }
+          ],
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Row Number"
+          ]
+        },
+        "options": {}
+      },
+      "id": "96b4d24f-14b9-476e-a958-8c9dbf29b07b",
+      "name": "Update Status: Facebook",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        256,
+        368
+      ],
+      "typeVersion": 4.7
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "<__PLACEHOLDER_VALUE__Document ID from trigger__>"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "<__PLACEHOLDER_VALUE__Sheet name from trigger__>"
+        },
+        "columns": {
+          "value": {
+            "Row Number": "={{ $json.row_number }}"
+          },
+          "schema": [
+            {
+              "id": "Row Number",
+              "type": "string",
+              "required": false,
+              "displayName": "Row Number",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "type": "string",
+              "required": false,
+              "displayName": "Status",
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            }
+          ],
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "Row Number"
+          ]
+        },
+        "options": {}
+      },
+      "id": "02b90bb0-fbe8-4235-9cd7-021b0aeafe35",
+      "name": "Update Status: LinkedIn",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        480,
+        176
+      ],
+      "typeVersion": 4.7
+    },
+    {
+      "parameters": {
+        "content": "## Platform Routing\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nChecks platform flags from the sheet (Instagram, Facebook, LinkedIn) and routes the post only to the platforms marked as TRUE.\n",
+        "height": 376,
+        "width": 206,
+        "color": 3
+      },
+      "id": "ea21fa94-40e9-46df-a2ff-4390c8709e10",
+      "name": "🔮 Future: Image Processing",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -608,
+        288
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## How it works\n\nThis workflow automatically publishes social media posts using Google Sheets as a lightweight content calendar.  \nEach new row added to the sheet represents one post. Platform-specific flags (Instagram, Facebook, LinkedIn) determine where the content should be published.\n\nWhen a new row is detected, the workflow reads the post content, checks which platforms are enabled, and publishes the post to the selected platforms. After each successful post, the workflow updates the same row in Google Sheets with a status so you can track what has already been published.\n\nThis design keeps content creation simple (Google Sheets) while automation handles distribution and status tracking. No manual posting is required once the row is added.\n\n## Setup steps\n\n1. Create a Google Sheet with columns:  \n   **Content**, **Instagram**, **Facebook**, **LinkedIn**, **Status**\n2. Connect your Google Sheets account in n8n.\n3. Add your Instagram Business Account ID and Facebook Page ID in the **Workflow Configuration** node.\n4. Connect Facebook Graph API and LinkedIn credentials.\n5. Set platform columns to `TRUE` or `FALSE` for each post.\n6. Add a new row to publish automatically.\n",
+        "height": 648,
+        "width": 494
+      },
+      "id": "e622c7c3-133c-4972-9d38-695f2087db5b",
+      "name": "🔮 Future: Scheduling",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1600,
+        80
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## Publish Posts\n\nPublishes the content text to the selected social media platforms using their respective APIs.\n",
+        "height": 136,
+        "width": 590,
+        "color": 6
+      },
+      "id": "a430cba1-40e9-4ed3-adbd-7d6fcd9a8854",
+      "name": "🔮 Future: Analytics",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -224,
+        0
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## Update Sheet Status\n\nUpdates the original Google Sheets row after posting, allowing you to track which platforms were successfully published.\n",
+        "height": 136,
+        "width": 606,
+        "color": 6
+      },
+      "id": "d6c9e258-b255-4c6c-9690-5c2361e16595",
+      "name": "🔮 Future: Analytics1",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        32,
+        752
+      ],
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Post to Facebook": {
+      "main": [
+        [
+          {
+            "node": "Update Status: Facebook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Update Status: LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Instagram": {
+      "main": [
+        [
+          {
+            "node": "Update Status: Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Check Platform: Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Platform: Facebook": {
+      "main": [
+        [
+          {
+            "node": "Post to Facebook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Platform: LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Platform: LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Post to LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Row in Content Sheet": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Platform: Instagram": {
+      "main": [
+        [
+          {
+            "node": "Post to Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Platform: Facebook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "3ff0ff79-39df-4cef-a0ba-80b90b4e15ab",
+  "meta": {
+    "instanceId": "0056a6eb1422b9e282ea91727a11a29b9cecf6c2073e820942d1b6743f8ddfc2"
+  },
+  "id": "2kpjHryuIFNdDM2P",
+  "tags": []
+}

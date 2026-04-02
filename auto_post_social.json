@@ -1,0 +1,106 @@
+{
+  "name": "Auto Post Social Media",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "Trailers",
+        "options": {}
+      },
+      "name": "Google Drive Trigger",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "return items.map(item => {\n  item.binary = { data: item.binary.file };\n  return item;\n});"
+      },
+      "name": "Prepare Video",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://graph.facebook.com/v17.0/TON_IG_USER_ID/media",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\"media_type\":\"VIDEO\",\"video_file\":\"{{$binary.data.data}}\",\"caption\":\"Nouveau trailer dispo ! 🎬 #IndieGame\"}",
+        "headerParametersJson": "={\"Authorization\":\"Bearer TON_TOKEN_META\"}"
+      },
+      "name": "Instagram Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [650, 250]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://graph.facebook.com/v17.0/TON_IG_USER_ID/media_publish",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\"creation_id\":\"{{$node[\"Instagram Upload\"].json[\"id\"]}}\"}",
+        "headerParametersJson": "={\"Authorization\":\"Bearer TON_TOKEN_META\"}"
+      },
+      "name": "Instagram Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://graph.facebook.com/v17.0/TON_PAGE_ID/videos",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\"file_url\":\"{{$binary.data.data}}\",\"description\":\"Nouveau trailer dispo ! 🎬 #IndieGame\"}",
+        "headerParametersJson": "={\"Authorization\":\"Bearer TON_TOKEN_META\"}"
+      },
+      "name": "Facebook Upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [650, 400]
+    }
+  ],
+  "connections": {
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Video": {
+      "main": [
+        [
+          {
+            "node": "Instagram Upload",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Facebook Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Instagram Upload": {
+      "main": [
+        [
+          {
+            "node": "Instagram Publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  ]
+}
